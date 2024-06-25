@@ -1,0 +1,17 @@
+{
+  "name": "data-team-kss",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@leapfrogtechnology/sync-db": "^2.1.1",
+    "dotenv": "^16.4.5",
+    "pg": "^8.12.0"
+  }
+}

@@ -1,0 +1,6 @@
+basepath: src
+connectionResolver: connection-resolver.js
+
+migration:
+  directory: migrations
+  tableName: data_team_kss_migrations
