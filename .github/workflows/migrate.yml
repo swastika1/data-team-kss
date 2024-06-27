@@ -1,0 +1,102 @@
+
+name: Migrate Database
+
+run-name: Migrate database using ${{ github.ref_name }} branch by @${{ github.actor }}
+
+on:
+  push:
+    branches:
+      - dev
+      - main
+
+    paths: 
+      - src/migrations
+
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Environment
+        required: true
+        type: choice
+        options:
+          - "dev"
+          - "prod"
+
+      dry_run:
+        type: boolean
+        description: Dry Run
+        default: false
+
+jobs:
+  trigger-info:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Info
+        run: |
+          avatar_url=${{ github.event.sender.avatar_url }}
+          actual_url="https://avatars.githubusercontent.com/u/${avatar_url:40:100}"
+
+          echo "### DEPLOYMENT INFO :rocket:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY # this is a blank line
+          echo "- **Deployer** - <img src='${actual_url}' width="20"> ${{ github.actor }}  :technologist:" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch** - ${{ github.ref_name }} :evergreen_tree:" >> $GITHUB_STEP_SUMMARY
+          echo "- **Environment** - ${{ github.event.inputs.environment }} :octocat:" >> $GITHUB_STEP_SUMMARY
+
+  resolve-vars:
+      name: Resolve Environment
+      runs-on: ubuntu-latest
+      steps:
+        - name: Resolve up environment variables
+          run: |
+            branch_ref=${{ github.head_ref }}
+            if ${{ contains(github.ref, 'main') }} || contains(github.event.inputs.environment, 'prod') }}; then
+              echo "env_name=prod" >> $GITHUB_OUTPUT
+            else
+              echo "env_name=dev" >> $GITHUB_OUTPUT
+            fi
+      outputs:
+        env_name: '${{ env.env_name }}'
+     
+  migrate:
+    name: Migrate
+    needs: resolve-vars
+    environment: ${{ needs.resolve-vars.outputs.env_name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        database: ["${{ vars.DB1_NAME }}", "${{ VARS.DB2_NAME }}"]
+
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node 18
+        uses: actions/setup-node@v4
+        with:
+          always-auth: true
+          node-version: "18"
+          registry-url: "https://npm.pkg.github.com"
+
+      - name: Install Dependencies
+        run: yarn
+
+      - name: Migrate (Dry)
+        if: inputs.dry_run == true
+        env:
+          DB_USER: ${{ vars.DB_USER }}
+          DB_HOST: ${{ vars.DB_HOST }}
+          DB_PASSWORD: ${{ vars.DB_PASSWORD }}
+          DB_NAME: ${{ matrix.database }}         
+        run: |
+          yarn sync-db migrate-latest --dry-run
+
+      - name: Migrate
+        if: inputs.dry_run == false 
+        env:
+          DB_USER: ${{ vars.DB_USER }}
+          DB_HOST: ${{ vars.DB_HOST }}
+          DB_PASSWORD: ${{ vars.DB_PASSWORD }}
+          DB_NAME: ${{ matrix.database }}
+        run: |
+          yarn sync-db migrate-latest
